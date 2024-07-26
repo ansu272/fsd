@@ -1,0 +1,109 @@
+Create the App: In the VS Code Terminal with your virtual environment activated, run:
+python manage.py startapp course_search
+• Modify views.py: Add the following code to course_search/views.py:
+python
+from django.http import JsonResponse
+from course_registration.models import Course
+from django.shortcuts import render
+def search_courses(request):
+ if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+ query = request.GET.get('query', None)
+ if query:
+ # Perform the search based on the query parameter
+ courses = Course.objects.filter(students__name__icontains=query)
+ # Create a list of course names
+ course_names = [{'name': course.name, 'course_id':
+course.course_id} for course in courses]
+ # Return the list of course names as JSON response
+ return JsonResponse({'courses': course_names})
+ else:
+ return JsonResponse({'error': 'No query parameter provided'})
+ else:
+ # Optionally, handle non-AJAX requests here
+ return render(request, 'course_search/search.html')
+• Create urls.py: Create a file named course_search/urls.py with the following content:
+python
+from django.urls import path
+from .views import search_courses
+urlpatterns = [
+ path('search/', search_courses, name='search_courses'),
+]
+• Update the Main urls.py: Modify myproject/urls.py to include the new app's URLs:
+python
+from django.contrib import admin
+from django.urls import path, include
+urlpatterns = [
+ path("admin/", admin.site.urls),
+ path('', include('website_pages.urls')),
+ path('fruits_and_students/', include('fruits_and_students.urls')),
+ path('registration/', include('course_registration.urls')),
+ path('', include('generate.urls')),
+ path('', include('enrollment.urls')),
+ path('', include('course_search.urls')),
+]
+• Update settings.py: Add course_search to the INSTALLED_APPS list in
+myproject/settings.py:
+python
+INSTALLED_APPS = [
+ # Other installed apps
+ 'course_search',
+]
+• Create the Template: Inside the course_search folder, create a folder named templates,
+and then another subfolder named course_search. In the templates/course_search folder,
+create a file named search.html with the following content:
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Search Courses</title>
+ <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+ <script>
+ $(document).ready(function() {
+ $('#search-form').submit(function(event) {
+ event.preventDefault();
+ var formData = $(this).serialize();
+ $.ajax({
+ url: '/search/',
+type: 'get',
+data: formData,
+dataType: 'json',
+success: function(response) {
+ if (response.courses) {
+ var coursesHtml = '';
+ response.courses.forEach(function(course) {
+ coursesHtml += '<li>' + course.name + ' (' +
+course.course_id + ')</li>';
+ });
+ $('#courses-list').html(coursesHtml);
+ } else {
+ $('#courses-list').html('<li>No courses
+found</li>');
+ }
+ },
+error: function(xhr, status, error) {
+ console.error('Error:', error);
+ }
+ });
+ });
+ });
+ </script>
+</head>
+<body>
+ <h1>Search Courses by Student</h1>
+ <form id="search-form" method="get">
+ <input type="text" name="query" placeholder="Enter student name">
+ <button type="submit">Search</button>
+ </form>
+ <ul id="courses-list"></ul>
+</body>
+</html>
+• Save all the modified files.
+• Run the Development Server: In the VS Code Terminal, with the virtual environment
+activated, run:
+python manage.py runserver
+• Check the Search Page: Open a browser and navigate to:
+• http://127.0.0.1:8000/search
+Use AJAX to retrieve data without refreshing the page by entering a student name and clicking
+the Search button
