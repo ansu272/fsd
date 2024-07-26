@@ -1,0 +1,77 @@
+To create a new app for generating PDFs and CSVs in your Django project, follow these steps:
+1. Create the App: In the VS Code Terminal with your virtual environment activated, run:
+python manage.py startapp generate
+2. Modify views.py: Add the following code to generate/views.py:
+python
+from course_registration.models import Student
+from django.http import HttpResponse
+import csv
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+def generate_csv(request):
+ students = Student.objects.all()
+ response = HttpResponse(content_type='text/csv')
+ response['Content-Disposition'] = 'attachment;
+filename="students.csv"'
+ writer = csv.writer(response)
+ writer.writerow(['ID', 'Name', 'Date of Birth', 'Email'])
+ for student in students:
+ writer.writerow([student.id, student.name,
+student.date_of_birth, student.email])
+ return response
+def generate_pdf(request):
+ students = Student.objects.all()
+ buffer = BytesIO()
+ p = canvas.Canvas(buffer, pagesize=letter)
+ p.setFont("Helvetica-Bold", 16)
+ p.drawString(100, 750, "Student List")
+ y = 700
+ for student in students:
+ p.setFont("Helvetica", 12)
+ p.drawString(100, y, f"ID: {student.id}, Name: {student.name},
+DoB: {student.date_of_birth}, Email: {student.email}")
+ y -= 20
+ p.showPage()
+ p.save()
+ buffer.seek(0)
+ response = HttpResponse(buffer.getvalue(),
+content_type='application/pdf')
+ response['Content-Disposition'] = 'attachment;
+filename="students.pdf"'
+ return response
+3. Update urls.py: Create or modify generate/urls.py:
+   python
+from django.urls import path
+from . import views
+urlpatterns = [
+ path('generate_csv/', views.generate_csv, name='generate_csv'),
+ path('generate_pdf/', views.generate_pdf, name='generate_pdf'),
+]
+4. Update the Main urls.py: Modify myproject/urls.py to include the new app's
+URLs:
+python
+from django.contrib import admin
+from django.urls import path, include
+urlpatterns = [
+ path("admin/", admin.site.urls),
+ path('', include('website_pages.urls')),
+ path('fruits_and_students/', include('fruits_and_students.urls')),
+ path('registration/', include('course_registration.urls')),
+ path('', include('generate.urls')),
+]
+5. Update settings.py: Add generate to the INSTALLED_APPS list in
+myproject/settings.py:
+python
+INSTALLED_APPS = [
+ # Other installed apps
+ 'generate',
+ ]
+6. Save all modified files.
+7. Run the Development Server: In the VS Code Terminal, with the virtual environment
+activated, run:
+python manage.py runserver
+8. Check the new URLs: Open a browser and navigate to:
+o http://127.0.0.1:8000/generate_pdf
+o http://127.0.0.1:8000/generate_csv
+This will allow you to download the student data as PDF and CSV files.
